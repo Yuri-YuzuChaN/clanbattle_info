@@ -43,7 +43,7 @@ magic_name = '13c941a144c18a98eb54b493ff0bd279' #魔法昵称,用于将全部未
 
 ext_param = ''
 #ext_param = '&battle_id=1'  #指定某一期会战 用于debug
-base_api = 'https://www.bigfun.cn/api/feweb?target='
+base_api = 'https://bigfun.bilibili.com/api/feweb?target='
 targets = {
     #公会总表
     "collect-report": "gzlj-clan-collect-report/a",
@@ -92,6 +92,7 @@ async def update_challenge_list(group_id: str) -> int:
 
     changed = False
     boss_count = 0
+    group_boss_data = [[] for i in range(5)]
     while True:
         last_challenge = {} #放上次更新的最后一条出刀数据 如果出刀表为空 就空着
         if len(boss_challenge_list[group_id][boss]) != 0:
@@ -100,24 +101,28 @@ async def update_challenge_list(group_id: str) -> int:
         page = 0
         index = -1
         start = 0
-        while True:
+        # while True:
             #寻找该boss本地最后一条出刀数据在新获取数据中的位置(index)
             #当前循环没有找到就继续循环拉取下一页,直到找到或者读取完全部记录.
             #没有新出刀记录index = 0, 本地记录为空index=-1
             #这个动作不能在整5分进行,否则bigfun数据刷新会导致出刀数据不连续.
-            ret, temp_challenges = await query_boss_data(group_id, boss, page)
-            if ret != 0:
-                group_config[group_id]['info'] = temp_challenges
-                return 1
-            challenges += temp_challenges
-            for i in range(start, len(challenges)):
-                if challenges[i] == last_challenge:
+        ret, temp_challenges = await query_boss_data(group_id, boss, page)
+        if ret != 0:
+            group_config[group_id]['info'] = temp_challenges
+            return 1
+        for i in temp_challenges:
+            group_boss_data[boss].append(i)
+        challenges += temp_challenges
+        for i in range(start, len(challenges)):
+            if 'datetime' in last_challenge:
+                if challenges[i]['datetime'] == last_challenge['datetime']:
                     index = i
                     break
-            page += 1
-            start += len(challenges)
-            if index != -1 or len(temp_challenges) == 0 or len(temp_challenges) % 25 != 0:
-                break
+        page += 1
+        start += len(challenges)
+        # if index != -1 or len(temp_challenges) == 0 or len(temp_challenges) % 25 != 0:
+        # if index != -1 or len(temp_challenges) == 0:
+        #     break
         if index == -1: #没有找到匹配项 重置该boss出刀表
             index = len(challenges)
             boss_challenge_list[group_id][boss] = []
@@ -340,7 +345,8 @@ async def query_data(group_id: str, target: str, *ext):
         cookie = group_config[group_id]['cookie']
     try:
         async with aiohttp.ClientSession(cookies=cookie) as session:
-            async with session.get(base_api + targets[target].format(*ext)) as resp:
+            url = base_api + targets[target].format(*ext)
+            async with session.get(url) as resp:
                 return await resp.json(content_type='application/json')
     except:
         traceback.print_exc()
@@ -356,15 +362,27 @@ async def query_boss_data(group_id, boss = 0, page = 0):
     except:
         traceback.print_exc()
         return 1, 'query_boss_data: 无法获取boss_id'
-    page += 1 #api的page从1开始
+    # page += 1 #api的page从1开始
 
-    data = await query_data(group_id, "boss_report", boss_id, page)
-    if not data or len(data) == 0:
-        return 1, 'query_boss_data: api访问失败'
-    if not 'data' in data:
-        return 1, 'query_boss_data: api数据异常'
-    data = data['data']
-    for item in data:
+    bossdata: list[dict] = []
+    for i in [0, 100, 200, 300, 400]:
+        page = 0
+        while True:
+            page += 1
+            data = await query_data(group_id, "boss_report", int(boss_id) + i, page)
+            if not data or len(data) == 0:
+                return 1, 'query_boss_data: api访问失败'
+            if not 'data' in data:
+                return 1, 'query_boss_data: api数据异常'
+            if data['data']:
+                for n in data['data']:
+                    bossdata.append(n)
+            else:
+                break
+
+    bossdata.sort(key=lambda x: x['datetime'], reverse=True)
+    
+    for item in bossdata:
         item['boss'] = boss #源数据没有boss序号 额外加入
         challenges.append(item)
     return 0, challenges
