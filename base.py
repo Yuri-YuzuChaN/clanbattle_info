@@ -1,11 +1,12 @@
-import os
-import aiohttp
+import asyncio
 import datetime
 import json
-import asyncio
-import threading
-import traceback
 import math
+import os
+import traceback
+from typing import Dict, Tuple
+
+import aiohttp
 import nonebot
 
 __all__ = [
@@ -16,7 +17,6 @@ __all__ = [
     'all_challenge_list',
     'clanbattle_info',
     'magic_name',
-
     'preinit_group', 
     'init_group', 
     'get_group_list',
@@ -49,7 +49,7 @@ targets = {
     "collect-report": "gzlj-clan-collect-report/a",
     #工会日表: boss状态 公会等级 日期列表
     "day_report_collect": "gzlj-clan-day-report-collect/a" + ext_param,
-    "day_report": "gzlj-clan-day-report/a&date={}&page=1&size=30" + ext_param,  #yyyy-mm-dd
+    "day_report": "gzlj-clan-day-timeline-report/a&date={}&size=500" + ext_param,  #yyyy-mm-dd
     #boss报表
     "boss_report_collect": "gzlj-clan-boss-report-collect/a" + ext_param, #boss报表
     "boss_report": "gzlj-clan-boss-report/a&boss_id={}&page={}" + ext_param, #boss_id page
@@ -62,15 +62,72 @@ group_config = { }
 group_data = { }
 
 #出刀数据(分boss 官方数据模式)
-boss_challenge_list = { }
+boss_challenge_list: Dict[str, list] = { }
 
 #出刀数据总表(不分boss)
-all_challenge_list = { }
+all_challenge_list: Dict[str, list] = {}
 
 #公会战信息 不保存
 clanbattle_info = {}
 
 update_time = ''
+
+async def update_challenge_day(group_id: str) -> int:
+    index = -1
+    start = 0
+    full_update = False
+    changed = False
+    challenges = []
+    group_boss_data = []
+
+    if group_id in all_challenge_list and len(all_challenge_list[group_id]) > 0:
+        challenge = all_challenge_list[group_id][-1]
+        boss = challenge['boss']
+        if challenge['kill'] == 1:
+            boss += 1
+            boss %= 5
+    else:
+        full_update = True
+    
+    if group_id not in boss_challenge_list:
+        boss_challenge_list[group_id] = []
+    
+    # 开始更新
+    last_challenge = {} #放上次更新的最后一条出刀数据 如果出刀表为空 就空着
+    if len(boss_challenge_list[group_id]) != 0:
+        last_challenge = boss_challenge_list[group_id][-1]
+    # 获取日出刀表
+    ret, temp_challenges = await query_day_data(group_id)
+    if ret != 0:
+        group_config[group_id]['info'] = temp_challenges
+        return 1
+    
+    for _ in temp_challenges:
+        group_boss_data.append(_)
+    challenges += temp_challenges
+
+    for _ in range(start, len(challenges)):
+        if 'datetime' in last_challenge:
+            if challenges[_]['datetime'] == last_challenge['datetime']:
+                index = _
+                break
+    if index == -1:
+        index = len(challenges)
+        boss_challenge_list[group_id] = []
+    for item in reversed(challenges[0: index]): #将(0~index-1)的新纪录加入列表
+        changed = True
+        boss_challenge_list[group_id].append(item)
+    if len(challenges) == 0 or challenges[0]['kill'] != 1:
+        if not full_update:
+            pass
+
+    if changed:
+        all_challenge_list[group_id] = []
+        challenges = boss_challenge_list[group_id]
+        for _ in challenges:
+            all_challenge_list[group_id].append(_)
+
+    return 0
 
 #刷新各boss出刀数据
 async def update_challenge_list(group_id: str) -> int:
@@ -165,7 +222,7 @@ async def safe_update_challenge_list(group_id: str):
         update_lock[group_id] = asyncio.Lock()
     await update_lock[group_id].acquire()
     try:
-        ret = await update_challenge_list(group_id)
+        ret = await update_challenge_day(group_id)
     except Exception as _:
         traceback.print_exc()
     update_lock[group_id].release()
@@ -254,7 +311,10 @@ async def update_clanbattle_info_boss(group_id: str):
     data = data['data']
     if 'boss_list' in data:
         #boss列表 [{id: "501", boss_name: "双足飞龙"}, {id: "502", boss_name: "野性狮鹫"}, {id: "503", boss_name: "雷电"},…]
-        clanbattle_info[group_id]['boss_list'] = data['boss_list']
+        temp = {}
+        for _ in range(5):
+            temp[data['boss_list'][_]['boss_name']] = _
+        clanbattle_info[group_id]['boss_list'] = temp
         clanbattle_info[group_id]['boss_update_datetime'] = get_pcr_tomorrow_datetime()
     #星座名 "狮子座"
     #if 'name' in data:
@@ -352,6 +412,26 @@ async def query_data(group_id: str, target: str, *ext):
         traceback.print_exc()
     return None
 
+async def query_day_data(group_id: str) -> Tuple[int, dict]:
+    challenges = []
+    bossdata = []
+    for date in clanbattle_info[group_id]['day_list']:
+        data = await query_data(group_id, 'day_report', date)
+        if not data or len(data) == 0:
+            return 1, 'query_boss_data: api访问失败'
+        if not 'data' in data:
+            return 1, 'query_boss_data: api数据异常'
+        if data['data']['list']:
+            for _ in data['data']['list']:
+                bossdata.append(_)
+    
+    bossdata.sort(key=lambda x: x['datetime'], reverse=True)
+
+    for item in bossdata:
+        item['boss'] = clanbattle_info[group_id]['boss_list'][item['boss_name']] #源数据没有boss序号 额外加入
+        challenges.append(item)
+    return 0, challenges
+
 #获取boss出刀数据
 async def query_boss_data(group_id, boss = 0, page = 0):
     challenges = []
@@ -400,7 +480,7 @@ def preinit_group(group_id: str):
     if group_id not in all_challenge_list:
         all_challenge_list[group_id] = {}
     if group_id not in boss_challenge_list:
-        boss_challenge_list[group_id] = [{} for i in range(0,5)]
+        boss_challenge_list[group_id] = []
     if 'state' not in group_config[group_id]:
         group_config[group_id]['state'] = 'uninited' #未初始化状态
     if 'info' not in group_config[group_id]:
@@ -421,7 +501,7 @@ async def init_group(group_id: str, internal: bool = False) -> int:
         return 1
     #清除出刀数据 以便于数据异常恢复
     clanbattle_info[group_id] = {}
-    boss_challenge_list[group_id] = [[] for i in range(5)]
+    boss_challenge_list[group_id] = []
     all_challenge_list[group_id] = []
     #依次从接口获取数据, 某个过程失败就不再继续后续进程
     if await update_clanbattle_info_boss(group_id) != 0 or await update_clanbattle_info_day(group_id) != 0 or await safe_update_challenge_list(group_id) != 0:
@@ -557,10 +637,9 @@ def check_reservation(group_id: str):
         #boss列表 [{id: "501", boss_name: "双足飞龙"}, {id: "502", boss_name: "野性狮鹫"}, {id: "503", boss_name: "雷电"},…]
         clanbattle_info[group_id]['boss_list'] 
         boss = -1
-        for i in range(len(clanbattle_info[group_id]['boss_list'])):
-            if clanbattle_info[group_id]['boss_list'][i]['boss_name'] == clanbattle_info[group_id]['boss_info']['name']:
-                boss = i
-                break
+
+        boss = clanbattle_info[group_id]['boss_list'][clanbattle_info[group_id]['boss_info']['name']]
+
         if boss == -1:
             return rlist
         boss = str(boss)

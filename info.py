@@ -1,11 +1,8 @@
-import os
-import aiohttp
-import asyncio
 import datetime
-import json
-import traceback
+from typing import Union
 
 from .base import *
+
 
 def format_number(number: int) -> str:
     if number == 0:
@@ -43,7 +40,7 @@ def format_challenge_report(challenge_list: list):
     return msg
 
 #总表
-async def get_collect_report(group_id: str) -> (int, str):
+async def get_collect_report(group_id: str) -> Union[int, str]:
     group_id = str(group_id)
     msg = ""
     data = await query_data(group_id, "collect-report")
@@ -67,7 +64,7 @@ async def get_collect_report(group_id: str) -> (int, str):
     return msg
 
 #日表
-async def get_day_report(group_id: str, day: int = 0) -> (int, str):
+async def get_day_report(group_id: str, day: int = 0) -> Union[int, str]:
     msg = ''
     day_str = get_daystr_from_daylist(group_id, day)
     if not day_str:
@@ -90,7 +87,7 @@ async def get_day_report(group_id: str, day: int = 0) -> (int, str):
     return msg
     
 #boss表
-async def get_boss_report(group_id: str, boss: int = 0) -> (int, str):
+async def get_boss_report(group_id: str, boss: int = 0) -> Union[int, str]:
     group_id = str(group_id)
     if boss >= len(boss_challenge_list[group_id]):
         return '序号超出范围'
@@ -121,7 +118,7 @@ async def get_boss_report(group_id: str, boss: int = 0) -> (int, str):
     return msg
 
 #日出刀
-async def get_day_challenge_report(group_id: str, day: int = 0) -> (int, str):
+async def get_day_challenge_report(group_id: str, day: int = 0) -> Union[int, str]:
     day_str = get_daystr_from_daylist(group_id, day)
     if not day_str:
         return '无数据'
@@ -148,7 +145,7 @@ async def get_day_challenge_report(group_id: str, day: int = 0) -> (int, str):
     return msg
 
 #个人出刀
-async def get_member_challenge_report(group_id: str, name: str) -> (int, str):
+async def get_member_challenge_report(group_id: str, name: str) -> Union[int, str]:
     msg = f"{name}的出刀记录:"
     for item in all_challenge_list[group_id]:
         if item['name'] == name:
@@ -168,7 +165,7 @@ async def get_member_challenge_report(group_id: str, name: str) -> (int, str):
     return msg
 
 #boss状态
-def get_boss_state_report(group_id: str) -> (int, str):
+def get_boss_state_report(group_id: str) -> Union[int, str]:
     group_id = str(group_id)
     msg = ""
     boss_info = {}

@@ -1,24 +1,8 @@
-# 本项目已停止维护
-
-现在打开毕方网页版团队战工具的boss报表页面, 你会在页面下方看到一行字:
-
->跨日刀会影响到统计数据的精准性，每日0点更新数据，实时数据请在bigfunAPP内查看
-
-由于网页端出刀数据改为只在每日0时更新一次, 本项目已经没有实际使用价值, 所以就此停止维护更新.
-
-请使用本项目的公会转为手动报刀或使用毕方客户端, 当然, 也可以忍受每天0点一口气上报全天的出刀数据.
-
-万事万物总有始终, 感谢各位咸鱼公会的一路陪伴.
-
-愿天堂没有公会战.
-
-R.I.P.
-
 # clanbattle_info
 
-本项目为公主连结国服公会战信息管理插件,适用于HoshinoBot v2. 使用官方团队战工具 (https://www.bigfun.cn/tools/pcrteam/) 数据源.
+本项目为[zyujs](https://github.com/zyujs)开发的[clanbattle_info](https://github.com/zyujs/clanbattle_info)魔改插件，为公主连结国服公会战信息管理插件,适用于HoshinoBot v2. 使用官方团队战工具 (https://bigfun.bilibili.com/tools/pcrteam/) 数据源.
 
-本项目地址 https://github.com/zyujs/clanbattle_info
+本项目地址 https://github.com/Yuri-YuzuChaN/clanbattle_info
 
 ## 功能
 
@@ -36,10 +20,12 @@ R.I.P.
 
 ## 安装方法
 
-1. 在HoshinoBot的插件目录modules下clone本项目 `git clone https://github.com/zyujs/clanbattle_info.git`
-1. 在 `config/__bot__.py`的模块列表里加入 `clanbattle_info`
-1. 按照下一节说明创建群配置文件
-1. 重启HoshinoBot
+### 在安装前，请确保HoshinoBot已安装yobot的魔改插件[yobot_remix](https://github.com/eggggi/yobot_remix)
+
+1. 在HoshinoBot的插件目录modules下clone本项目 `git clone https://github.com/Yuri-YuzuChaN/clanbattle_info`
+2. 在 `config/__bot__.py`的模块列表里加入 `clanbattle_info`
+3. 按照下一节说明创建群配置文件
+4. 重启HoshinoBot
 
 ## 配置方法
 

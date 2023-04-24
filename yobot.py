@@ -1,11 +1,18 @@
-import datetime
-import aiohttp
 import asyncio
-import traceback
-import math
 import datetime
+import traceback
+from typing import Tuple, Union
+
+import aiohttp
 import nonebot
+
 import hoshino
+
+try:
+    from ..yobot_remix.yobot_remix.src.client.ybplugins.clan_battle import \
+        ClanBattle
+except:
+    pass
 from .base import *
 
 __all__ = [
@@ -19,7 +26,7 @@ __all__ = [
 
 ### standalone 模式
 
-async def query_yobot_data(api_url: str) -> (int, dict or str):
+async def query_yobot_data(api_url: str) -> Union[int, dict, str]:
     data = None
     for _ in range(5):
         try:
@@ -51,13 +58,13 @@ def format_yobot_report_message(challenge: dict):
 ### 缝合模式功能
 
 #获取插件版yobot的ClanBattle实例
-def get_embedded_yobot_ClanBattle_instance():
+def get_embedded_yobot_ClanBattle_instance() -> ClanBattle:
     plugins = nonebot.get_loaded_plugins()
     for plugin in plugins:
         m = str(plugin.module)
         m = m.replace('\\\\', '/')
         m = m.replace('\\', '/')
-        if 'modules/yobot/yobot/__init__.py' in m:
+        if 'modules/yobot_remix/yobot_remix/__init__.py' in m:
             passive_list = []
             try:
                 passive_list = plugin.module.src.client.nonebot_plugin.bot.plug_passive
@@ -83,7 +90,7 @@ def embedded_yobot_add_challenge(group_id: str, challenge):
     if get_pcr_days_from(dt) > 0:
         previous_day = True
     try:
-        result = clanbattle.challenge(int(group_id), challenge['qqid'], defeat, challenge['damage'], None, previous_day=previous_day)
+        result = clanbattle.challenge(int(group_id), challenge['qqid'], defeat, challenge['damage'], None, boss_num=str(challenge['boss'] + 1), previous_day=previous_day)
         msg = 'yobot新增出刀记录:\n' + str(result)
     except Exception as e:
         msg = 'yobot添加出刀记录失败:\n' + str(e)
@@ -205,7 +212,7 @@ async def wait_yobot_sync(group_id: str, challenge: dict):
     msg = f'最新上报记录匹配失败,请手动修正出刀数据.\n本次上报出刀数据:\n{format_challenge(challenge)}yobot最近出刀数据:\n{format_yobot_challenge(yobot_challenge)}'
     return 2, msg
 
-async def generate_name2qq(group_id: str, yobot_members = None):
+async def generate_name2qq(group_id: str, yobot_members = None) -> Tuple[int, str]:
     name2qq = {}
     yobot_members = []
     if not yobot_members:
@@ -273,7 +280,7 @@ async def get_unknown_members_report(group_id: str) -> str:
 
 
 #检查yobot记录 如果同步成功 返回出刀表
-async def check_yobot(group_id: str) -> (int, list or str):
+async def check_yobot(group_id: str) -> Tuple[int, Union[list, dict, str]]:
     group_id = str(group_id)
     if group_id not in group_data or group_id not in group_config:
         return 1, 'check_yobot: 群组配置异常'
