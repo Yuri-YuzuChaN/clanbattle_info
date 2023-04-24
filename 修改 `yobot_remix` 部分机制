@@ -24,8 +24,10 @@
 
 1. 在HoshinoBot的插件目录modules下clone本项目 `git clone https://github.com/Yuri-YuzuChaN/clanbattle_info`
 2. 在 `config/__bot__.py`的模块列表里加入 `clanbattle_info`
-3. 按照下一节说明创建群配置文件
-4. 重启HoshinoBot
+4. 按照下一节说明创建群配置文件
+5. 修改 `yobot_remix` 缓存机制，修改以下路径 `modules\yobot_remix\yobot_remix\src\client\ybplugins\clan_battle\components\realize.py` 文件的第 `1414` 和 `1473` 行，将 `@timed_cached_func(max_len=64, max_age_seconds=10, ignore_self=True)` 中的 `max_age_seconds=10` 修改为 `1`
+6. 移除 `yobot_remix` 报刀上限机制，修改以下路径 `modules\yobot_remix\yobot_remix\src\client\ybplugins\clan_battle\components\realize.py` 文件的第 `631` 和 `1031` 行，将 `finished >= 3` 修改为 `finished >= 10`
+7. 重启HoshinoBot
 
 ## 配置方法
 
